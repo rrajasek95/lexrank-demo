@@ -1,0 +1,190 @@
+= LexRank =
+
+Link: [[local:/home/rishi/jupyter-notebooks/lexrank/lexrank.pdf]]
+
+Keywords:
+extractive summarization, sentence centrality, centroid, tf-idf
+
+Tasks:
+- [X] Implement tf-idf
+- [X] Implement centroid based extraction
+- [ ] Implement idf-modified-cosine
+
+
+== Abstract ==
+* Stochastic, graph-based method
+* Extractive text summarization
+	* Relies on the concept of sentence salience
+	* Salience defined on 
+		* The prescence of particular important words
+		* Similarity to a centroid pseudo-sentence
+	* Compute sentence importance based on eigenvector centrality in a graph representation
+	* Connectivity matrix defined on
+		* Cosine similarity weight
+* Multiple methods to calculate degree centrality
+* Degree based methods beat centroid based methods and others in most cases
+* LexRank with threshold beats other methods such as continuous LexRank
+
+
+== Introduction ==
+
+Types of problems in NLP:
+* Parsing
+* Word sense disambiguation
+* Automatic paraphrasing
+
+Graph based method problems:
+* Word clustering
+* Prepositional phrase attachment
+
+Ideas:
+* Random walks on sentence-based graphs help text summarization
+* Similar techniques can be applied to NLP tasks such as
+	* Named entity classification
+	* Prepositional phrase attachment
+	* Text classification (e.g. spam detection)
+
+
+=== Text Summarization ===
+* Process of automatically creating a compressed version of a given text that provides useful info
+* Information content of summary depends on user needs
+	* Topic-oriented summaries 
+		* Focus on topic of interest
+		* Extract info related to topic
+	* Generic summaries
+		* Cover as much information content as possible
+		* Preserving topic organization of text
+* Focus of paper is *multi-document extractive generic text summarization*
+* Goal is to produce a summary of multiple documents about the same, but unspecified topic
+
+
+==== Extractive Summarization ====
+* Produces summaries by choosing a subset of sentences in the original document(s)
+* Contrast with abstractive, where information is rephrased.
+* Purely extractive summaries give better results than abstractive
+	* Semantic representation, inference and natural lang generation are hard
+* Existing abstractive summarizers depend on some extractive preprocessing component
+* Early research based on heuristic features of sentences
+	* Position in text
+	* Key phrases indicating importance
+	* Overall frequency of words
+* Common metric to assess importance of words is *inverse document frequency*
+* Advanced techniques
+	* Relation between sentences
+	* Anaphora resolution (Mani & Bluedorn, 1997; Barzilay & Elhadad, 1999)
+
+
+===== Approach =====
+* Assess centrality of each sentence in a cluster
+* Extract most important ones to include in the summary
+* Investigate different ways of defining lexical centrality in multi-document summarization
+* Lexical centrality measures centrality in terms of lexical properties of a sentence
+* Section 2 presents centroid based summarization - well known method
+* New measures of centrality
+	* Degree
+	* LexRank with threshold
+	* Continuous Lexrank (inspired from prestige concept in social networks)
+* Graph representation of document cluster
+	* Vertices -> Sentences
+	* Edges -> Similarity relation between sentences
+* Graph representation allows application of several centrality based heuristics
+* Show new features outperform Centroid in most cases
+* Test data taken from 2003 & 2004 summary evaluations of Document Understanding Conferences
+	* Comparing against state-of-the-art and human performance
+
+
+==== Sentence Centrality and Centroid-based Summarization ====
+* Extractive summarization works by choosing a subset of the sentences in the document
+* Can be thought of as 
+	* Identifying the most central sentences in a cluster
+	* Which give necessary and sufficient amount of info related to main theme
+* Centrality of sentence is defined in terms of centrality of words it contains
+* Word centrality can be assessed through
+	* Looking at centroid of the document cluster in a vector space
+	* Centroid of cluster is a pseudo document which contains tf-idf scores above threshold
+	* Sentences that contain more words from centroid is considered as central
+	* Measure of how close the sentence is to the centroid
+* Centroid-based summarization gave promising results
+* Resulted in first web-based multi-document summarization system
+
+
+==== Centrality based Sentence Salience ====
+* Approaches based on the concept of *prestige* in social networks
+* A social network is a mapping of relationships b/w interacting entities
+* Social Networks are represented as graps
+	* Vertex -> Entity
+	* Link -> Relationships
+* A cluster of documents can be viewed as a network of related sentences
+* Some sentences are more similar than others
+* Sentences that are similar to many other sentences are more central (or salient) to the topic
+* Points of clarification
+	* Defining similarity b/w two sentences
+	* Computing overall centrality of a sentence given similarity to other sentences
+* Similarity
+	* Use the bag-of-words model to represent each sentence as an N-D vector
+	* N is the number of possible words in the target language
+	* For each word that occurs
+		* Value of corresponding dimension is (no. of occurences)*(idf of the word)
+	* Similarity between sentences defined through cosine between vectors
+* A cluster of documents may be represented by a cosine similarity matrix where each entry is similarity b/w corresponding sentence pair
+* This is can be thought of as a graph where the vertices are the sentences and similarity serves as the edge weight
+
+
+===== Degree Centrality =====
+* In a cluster of related documents, many sentences are expected to be somewhat similar (due to being about same topic)
+* We are concerned with significant similarities
+	* Eliminate low-similarity edges by cosine thresholding, making the graph slightly more sparse
+	* Significantly similar sentences will still be connected
+* Simple sentence centrality measure is to count number of similar sentences for each sentence
+* We define *degree centrality* as degree of corresponding node in the similarity graph
+* Choice of consine threshold strongly influences the interpretation
+	* Too low value takes weak similarities into consideration
+	* Too high loses many similarity relations
+
+
+===== Eigenvector Centrality & LexRank =====
+* When computing degree centrality, we treated each edge as a *vote* to determine overall centrality.
+* Totally democratic process since value of each vote is the same
+* However, in many social networks, not all relationships are equally important
+* For e.g., consider a social network of people connected to each other with friendship relation
+* *Prestige* of a person is not determined by how many friends he has, but _who_ their friends are
+* Degree centrality may have -ve effect where several unwanted sentences "vote" for each other and raise their centrality
+* Consider a cluster where all documents are related to each other, but only one is somewhat different
+* Typically, we do not want any unrelated sentences in our summary.
+* However, if unrelated document contains sentences that are very prestigious considering only the votes in that doc.
+* Then these sentences will get artificially high centrality scores by the local votes from that set of sentences
+* This can be avoided by considering where votes come from & taking centrality of voting notes into account in weighting each vote.
+* A simple way to formulate is
+	* Consider every node having a centrality value
+	* Distribute this centrality to its neighbors
+* It can be expressed in matrix form as
+	* *p = B^T^p*
+	* *p^T^B = p^T^*
+	* Where *B* is obtained by dividing adjacency matrix by corresponding row sum
+	* Since every sentence is similar to itself, all row sums are nonzero
+	* *p^T^* is the left eigenvector of matrix *B* with eigenvalue *1*
+
+To identify such an eigenvector exists and can be computed, we need some funda:
+* A stochastic matrix *X* is the transition matrix of a Markov chain
+* Element *X(i,j)* specifies the transition probability from state _i_ to _j_ in the Markov chain
+* By probability axioms, all rows must sum to 1.
+* *X^n^(i,j)* gives probability of reaching from _i_ to _j_ in _n_ transitions
+* Markov chain with stochastic matrix *X* converges to a stationary distribution if
+	* lim *X^n^* = *1^T^r*
+	* where 1 = (1,1,..., 1) & r being stationary distribution of the Markov chain
+* A stationary distribution can be understood by concept of random walk
+* Each element of *r* gives asymptotic probability of being in state in the long run regardless of starting state
+* A Markov Chain is irreducible if any state is reachable from any other state i.e. for all _i,j_ there exists an _n_ where *X^n^(i,j*) != 0. This means that we cannot eliminate any transition
+* A Markov Chain is aperiodic if for all _i_, gcd{n: *X^n^(i,i)* > 0} = 1 i.e. gcd of all steps where i returns to i is greater than 1 (implies there's an arithmetic or geometric progression to the steps)
+* According to *Perron-Frobenius theorem* (Seneta, 1981), an irreducible and aperiodic Markov chain is guaranteed to converge to a unique stationary distribution
+* If a Markov chain has reducible or periodic components, a random walker may get stuck in those components and never visits other parts of graph.
+* Similarity matrix *B* satisfies properties
+* Centrality vector *p* corresponds to stationary distribution of *B*
+* But, we need to prove that the similarity matrix is always irreducible and aperiodic
+* To solve this, Page et al. (1998) [Google's Larry Page :)], suggests reserving low probability to jump to any node in the graph.
+* This way, the random walker can "escape" from periodic or disconnected components which make graph irreducible and aperiodic
+* If we assign a uniform probability for jumping to any node, we are left with a modified eqn.
+	* *p* = [d*U* + (1 - d)*B*]^T^*p*
+	* d is a damping factor
+	* U is a square matrix where all elements is 1/N
+* A random walker chooses one of adjacent states with probability (1 - d) or jumps to a random node in the graph
